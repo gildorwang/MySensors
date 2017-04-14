@@ -27,6 +27,8 @@
  * http://www.mysensors.org/build/relay
  */ 
 
+#define MY_NODE_ID 4
+
 // Enable repeater functionality for this node
 #define MY_REPEATER_FEATURE
 
