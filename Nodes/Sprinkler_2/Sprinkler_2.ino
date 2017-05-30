@@ -17,14 +17,6 @@
  * version 2 as published by the Free Software Foundation.
  *
  *******************************
- *
- * REVISION HISTORY
- * Version 1.0 - Henrik Ekblad
- *
- * DESCRIPTION
- * Example sketch showing how to control physical relays.
- * This example will remember relay state after power failure.
- * http://www.mysensors.org/build/relay
  */
 
 #define MY_NODE_ID 51
@@ -41,8 +33,8 @@
 #define RELAY_1_PIN  3  // Arduino Digital I/O pin number for first relay (second on pin+1 etc)
 #define RELAY_1_SENSOR_ID 1 // Sensor ID for the first relay
 #define NUMBER_OF_RELAYS 2 // Total number of attached relays
-#define RELAY_ON 0  // GPIO value to write to turn on attached relay
-#define RELAY_OFF 1 // GPIO value to write to turn off attached relay
+#define RELAY_ON LOW  // GPIO value to write to turn on attached relay
+#define RELAY_OFF HIGH // GPIO value to write to turn off attached relay
 #define BUTTON_ON LOW
 #define BUTTON_OFF HIGH
 #define GREEN_BUTTON_PIN 8
@@ -50,16 +42,21 @@
 
 #define SENSOR_ID_LCD 0
 
+// LCD wiring:
+// - VCC: 5V
+// - GND: GND
+// - SDA: A4
+// - SCL: A5
 LiquidCrystal_I2C lcd(0x27,16,2); // set the LCD address to 0x27 for a 16 chars and 2 line display
 
-#define NODE_VERSION "2.5"
+#define NODE_VERSION "2.6"
 
 // LCD backlight on duration
 const unsigned long lcdOnDurationMillis = 5000;
 // Scheduled LCD backlight off time
 unsigned long lcdOffMillis = 0;
 // The maximum watering time limit, in case the controller is down or lost connectivity
-const unsigned long maxWaterDuration = 10L * 1000L;
+const unsigned long maxWaterDuration = 30L * 60L * 1000L;
 // Scheduled off time for each station
 unsigned long waterOffMillis[NUMBER_OF_RELAYS] = {0};
 // Time to wait before starting manual watering when selecting stations
@@ -73,7 +70,8 @@ bool isInitialized = false;
 enum State {
     ready,
     watering,
-    selecting
+    selecting,
+    shutdown
 };
 
 State state;
@@ -118,20 +116,20 @@ void before() {
 
 void presentation()
 {
-    if (!isInitialized) {
-        isInitialized = true;
-        msg("Ready", "Node ver: " NODE_VERSION);
-    }
-
     // Send the sketch version information to the gateway and Controller
     sendSketchInfo("Sprinkler 2", NODE_VERSION);
+
+    present(SENSOR_ID_LCD, S_INFO);
 
     for (int index = 1; index <= NUMBER_OF_RELAYS; index++) {
         // Register all sensors to gw (they will be created as child devices)
         present(indexToSensorId(index), S_BINARY);
     }
 
-    present(SENSOR_ID_LCD, S_INFO);
+    if (!isInitialized) {
+        isInitialized = true;
+        msg("Ready", "Node ver: " NODE_VERSION);
+    }
 }
 
 void loop()
@@ -148,6 +146,11 @@ void loop()
                 selectedStationId = 1;
                 msg("Station selected: ", selectedStationId);
                 delayForStartWatering();
+                return;
+            }
+            if (readRedButton() == BUTTON_ON) {
+                setState(shutdown);
+                msg("System shutdown", "Green to turn on");
                 return;
             }
             break;
@@ -193,6 +196,12 @@ void loop()
                 }
             }
             break;
+        case shutdown:
+            if (readGreenButton() == BUTTON_ON) {
+                setState(ready);
+                msg("Ready", "");
+            }
+            return;
     }
 }
 
@@ -248,11 +257,16 @@ void receive(const MyMessage &message) {
                 }
                 break;
             case watering:
-                if (!value && !isAnyStationOn()) {
+                if (!value) {
                     setStation(stationId, value);
-                    msg("All stations OFF", "Stand by");
-                    setState(ready);
+                    if (!isAnyStationOn()) {
+                        msg("All stations OFF", "Stand by");
+                        setState(ready);
+                    }
                 }
+                break;
+            case shutdown:
+                Serial.println("System in shutdown; message ignored.");
                 break;
         }
     }
