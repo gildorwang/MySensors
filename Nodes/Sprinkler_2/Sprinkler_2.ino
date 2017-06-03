@@ -28,6 +28,7 @@
 #include <MySensors.h>
 #include <Bounce2.h>
 #include <Wire.h> 
+// Get library here: https://bitbucket.org/fmalpartida/new-liquidcrystal/wiki/Home
 #include <LiquidCrystal_I2C.h>
 
 #define RELAY_1_PIN  3  // Arduino Digital I/O pin number for first relay (second on pin+1 etc)
@@ -42,12 +43,21 @@
 
 #define SENSOR_ID_LCD 0
 
+#define I2C_ADDR 0x27
+#define BACKLIGHT_PIN 3
+#define En_pin 2
+#define Rw_pin 1
+#define Rs_pin 0
+#define D4_pin 4
+#define D5_pin 5
+#define D6_pin 6
+#define D7_pin 7
 // LCD wiring:
 // - VCC: 5V
 // - GND: GND
 // - SDA: A4
 // - SCL: A5
-LiquidCrystal_I2C lcd(0x27,16,2); // set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(I2C_ADDR, En_pin, Rw_pin, Rs_pin, D4_pin, D5_pin, D6_pin, D7_pin);
 
 #define NODE_VERSION "2.6"
 
@@ -93,7 +103,8 @@ MyMessage stationStatusMsg[NUMBER_OF_RELAYS] = {
 
 void before() {
     // initialize the lcd
-    lcd.init();
+    lcd.begin(16, 2);
+    lcd.setBacklightPin(BACKLIGHT_PIN, POSITIVE);
     msg("Initializing...", "Node ver: " NODE_VERSION); // Print a message to the LCD.
     
     for (int index = 1; index <= NUMBER_OF_RELAYS; index++) {
@@ -135,7 +146,7 @@ void presentation()
 void loop()
 {
     if (lcdOffMillis != 0 && millis() > lcdOffMillis) {
-        lcd.noBacklight();
+        lcd.setBacklight(LOW);
         Serial.println("Turn off backlight");
         lcdOffMillis = 0;
     }
@@ -356,7 +367,7 @@ void msg(const char line1[], const char line2[]) {
     Serial.println(line1);
     Serial.println(line2);
     lcd.clear();
-    lcd.backlight();
+    lcd.setBacklight(HIGH);
     lcd.print(line1);
     lcd.setCursor(0,1); //newline
     lcd.print(line2);
@@ -367,7 +378,7 @@ void msg(const char line1[], int line2) {
     Serial.println(line1);
     Serial.println(line2);
     lcd.clear();
-    lcd.backlight();
+    lcd.setBacklight(HIGH);
     lcd.print(line1);
     lcd.setCursor(0,1); //newline
     lcd.print(line2);
