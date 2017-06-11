@@ -72,97 +72,97 @@ DHT dht;
 
 void presentation()  
 { 
-  // Send the sketch version information to the gateway
-  sendSketchInfo("PowerSupplyMonitor", "2.0");
-  
-  // Register all sensors to gw (they will be created as child devices)
-  present(CHILD_ID_HUM, S_HUM);
-  present(CHILD_ID_TEMP, S_TEMP);
-  
-  metric = getControllerConfig().isMetric;
+    // Send the sketch version information to the gateway
+    sendSketchInfo("PowerSupplyMonitor", "2.0");
+    
+    // Register all sensors to gw (they will be created as child devices)
+    present(CHILD_ID_HUM, S_HUM);
+    present(CHILD_ID_TEMP, S_TEMP);
+    
+    metric = getControllerConfig().isMetric;
 }
 
 
 void setup()
 {
-  /********* Setup PWM for Fan control **********/
-  //initialize all timers except for 0, to save time keeping functions
-  InitTimersSafe(); 
+    /********* Setup PWM for Fan control **********/
+    //initialize all timers except for 0, to save time keeping functions
+    InitTimersSafe(); 
 
-  //sets the frequency for the specified pin
-  bool success = SetPinFrequencySafe(fan, frequency);
-  
-  //if the pin frequency was set successfully, turn pin 13 on
-  if(!success) {
-    Serial.println("Error: Failed to set PWM");
-  }
+    //sets the frequency for the specified pin
+    bool success = SetPinFrequencySafe(fan, frequency);
+    
+    //if the pin frequency was set successfully, turn pin 13 on
+    if(!success) {
+        Serial.println("Error: Failed to set PWM");
+    }
 
-  /********* DHT Setup **********/
-  pinMode(LED_PIN, OUTPUT);
-  
-  dht.setup(DHT_DATA_PIN); // set data pin of DHT sensor
-  if (UPDATE_INTERVAL <= dht.getMinimumSamplingPeriod()) {
-    Serial.println("Warning: UPDATE_INTERVAL is smaller than supported by the sensor!");
-  }
+    /********* DHT Setup **********/
+    pinMode(LED_PIN, OUTPUT);
+    
+    dht.setup(DHT_DATA_PIN); // set data pin of DHT sensor
+    if (UPDATE_INTERVAL <= dht.getMinimumSamplingPeriod()) {
+        Serial.println("Warning: UPDATE_INTERVAL is smaller than supported by the sensor!");
+    }
 
-  nextUpdateMillis = millis() + UPDATE_INTERVAL;
+    nextUpdateMillis = millis() + UPDATE_INTERVAL;
 }
 
 
 void loop()      
 {  
-  //Write PWM
-  pwmWrite(fan, 220);
+    //Write PWM
+    pwmWrite(fan, 220);
 
-  unsigned long currentMillis = millis();
-  if (currentMillis >= ledOffMillis) {
-    digitalWrite(LED_PIN, LOW);
-  }
-  if (currentMillis >= nextUpdateMillis) {
-    nextUpdateMillis = currentMillis + UPDATE_INTERVAL;
-    
-    // Force reading sensor, so it works also after sleep()
-    dht.readSensor(true);
-    
-    bool isWorking = true;
-    
-    // Get temperature from DHT library
-    float temperature = dht.getTemperature();
-    if (isnan(temperature)) {
-      isWorking = false;
-      Serial.println("Failed reading temperature from DHT!");
-    } else {
-      lastTemp = temperature;
-      if (!metric) {
-        temperature = dht.toFahrenheit(temperature);
-      }
-      temperature += SENSOR_TEMP_OFFSET;
-      send(msgTemp.set(temperature, 1));
-  
-      #ifdef MY_DEBUG
-      Serial.print("T: ");
-      Serial.println(temperature);
-      #endif
+    unsigned long currentMillis = millis();
+    if (currentMillis >= ledOffMillis) {
+        digitalWrite(LED_PIN, LOW);
     }
-  
-    // Get humidity from DHT library
-    float humidity = dht.getHumidity();
-    if (isnan(humidity)) {
-      isWorking = false;
-      Serial.println("Failed reading humidity from DHT");
-    } else {
-      lastHum = humidity;
-      send(msgHum.set(humidity, 1));
-      
-      #ifdef MY_DEBUG
-      Serial.print("H: ");
-      Serial.println(humidity);
-      #endif
-    }
+    if (currentMillis >= nextUpdateMillis) {
+        nextUpdateMillis = currentMillis + UPDATE_INTERVAL;
+        
+        // Force reading sensor, so it works also after sleep()
+        dht.readSensor(true);
+        
+        bool isWorking = true;
+        
+        // Get temperature from DHT library
+        float temperature = dht.getTemperature();
+        if (isnan(temperature)) {
+            isWorking = false;
+            Serial.println("Failed reading temperature from DHT!");
+        } else {
+            lastTemp = temperature;
+            if (!metric) {
+                temperature = dht.toFahrenheit(temperature);
+            }
+            temperature += SENSOR_TEMP_OFFSET;
+            send(msgTemp.set(temperature, 1));
+    
+            #ifdef MY_DEBUG
+            Serial.print("T: ");
+            Serial.println(temperature);
+            #endif
+        }
+    
+        // Get humidity from DHT library
+        float humidity = dht.getHumidity();
+        if (isnan(humidity)) {
+            isWorking = false;
+            Serial.println("Failed reading humidity from DHT");
+        } else {
+            lastHum = humidity;
+            send(msgHum.set(humidity, 1));
+            
+            #ifdef MY_DEBUG
+            Serial.print("H: ");
+            Serial.println(humidity);
+            #endif
+        }
 
-    if (isWorking) {
-      digitalWrite(LED_PIN, HIGH);
-      ledOffMillis = currentMillis + 50;
+        if (isWorking) {
+            digitalWrite(LED_PIN, HIGH);
+            ledOffMillis = currentMillis + 50;
+        }
     }
-  }
 }
