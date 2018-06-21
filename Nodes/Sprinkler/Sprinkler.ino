@@ -65,8 +65,6 @@ const unsigned long startWateringDelay = 5 * 1000;
 // Millis to start manual watering
 unsigned long startWateringMillis = 0;
 
-bool isInitialized = false;
-
 // State of the system
 enum State {
     ready,
@@ -121,16 +119,15 @@ void presentation()
     sendSketchInfo("Sprinkler 1", NODE_VERSION);
 
     present(SENSOR_ID_LCD, S_INFO);
+    wait(50);
 
     for (int index = 1; index <= NUMBER_OF_RELAYS; index++) {
         // Register all sensors to gw (they will be created as child devices)
         present(indexToSensorId(index), S_BINARY);
+        wait(50);
     }
 
-    if (!isInitialized) {
-        isInitialized = true;
-        msg("Ready", "Node ver: " NODE_VERSION);
-    }
+    msg("Ready", "Node ver: " NODE_VERSION);
 }
 
 void loop()
