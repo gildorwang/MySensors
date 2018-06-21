@@ -35,17 +35,8 @@
 * - ERR (red) - fast blink on error during transmission error or recieve crc error
 *
 */
-// Set LOW transmit power level as default, if you have an amplified NRF-module and
-// power your radio separately with a good regulator you can turn up PA level.
-#define MY_RF24_PA_LEVEL RF24_PA_HIGH
-
 // Enable serial gateway
 #define MY_GATEWAY_SERIAL
-
-// Define a lower baud rate for Arduino's running on 8 MHz (Arduino Pro Mini 3.3V & SenseBender)
-#if F_CPU == 8000000L
-#define MY_BAUD_RATE 38400
-#endif
 
 // Enable inclusion mode
 #define MY_INCLUSION_MODE_FEATURE
@@ -72,6 +63,8 @@
 //#define MY_DEFAULT_RX_LED_PIN  6  // Receive led pin
 //#define MY_DEFAULT_TX_LED_PIN  5  // the PCB, on board LED
 
+//#include "..\..\CustomConfig\CustomConfig.h"
+#include <MySensorsCustomConfig.h>
 #include <MySensors.h>
 
 void setup()
