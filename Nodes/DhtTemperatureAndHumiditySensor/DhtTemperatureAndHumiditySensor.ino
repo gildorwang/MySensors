@@ -31,11 +31,12 @@
  * 
  */
 
-#define MY_NODE_ID 2
+#define MY_NODE_ID 11
 
 // Enabled repeater feature for this node
 #define MY_REPEATER_FEATURE
- 
+
+#include <MySensorsCustomConfig.h>
 #include <SPI.h>
 #include <MySensors.h>  
 #include <DHT.h>
@@ -58,7 +59,7 @@ static const uint8_t FORCE_UPDATE_N_READS = 10;
 
 #define CHILD_ID_HUM 0
 #define CHILD_ID_TEMP 1
-#define LED_PIN 2
+#define LED_PIN 4
 
 float lastTemp;
 float lastHum;
@@ -74,7 +75,7 @@ DHT dht;
 void presentation()  
 { 
   // Send the sketch version information to the gateway
-  sendSketchInfo("TemperatureAndHumidity_1", "2.1");
+  sendSketchInfo("TemperatureAndHumidity_1", "3.0");
   
   // Register all sensors to gw (they will be created as child devices)
   present(CHILD_ID_HUM, S_HUM);
