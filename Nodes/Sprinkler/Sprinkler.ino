@@ -36,12 +36,12 @@
 #define NUMBER_OF_RELAYS 1 // Total number of attached relays
 #define RELAY_ON LOW  // GPIO value to write to turn on attached relay
 #define RELAY_OFF HIGH // GPIO value to write to turn off attached relay
-#define BUTTON_ON LOW
-#define BUTTON_OFF HIGH
 #define GREEN_BUTTON_PIN 8
-#define RED_BUTTON_PIN 7
+#define RED_BUTTON_PIN 9
 
 #define SENSOR_ID_LCD 0
+
+#define HEARTBEAT_INTERVAL 30000
 
 // LCD wiring:
 // - VCC: 5V
@@ -56,6 +56,8 @@ LiquidCrystal_I2C lcd(0x3F,16,2); // set the LCD address to 0x27 for a 16 chars 
 const unsigned long lcdOnDurationMillis = 5000;
 // Scheduled LCD backlight off time
 unsigned long lcdOffMillis = 0;
+// Scheduled heartbeat time
+unsigned long heartbeatMillis = 0;
 // The maximum watering time limit, in case the controller is down or lost connectivity
 const unsigned long maxWaterDuration = 30L * 60L * 1000L;
 // Scheduled off time for each station
@@ -81,8 +83,6 @@ int selectedStationId = 0;
 // Reader for the green and the red buttons
 Bounce greenButton = Bounce();
 Bounce redButton = Bounce();
-int greenOldVal = -1;
-int redOldVal = -1;
 
 // Message to send to controller for station state change
 MyMessage stationStatusMsg[NUMBER_OF_RELAYS] = {
@@ -103,11 +103,9 @@ void before() {
         saveState(indexToSensorId(index), false);
     }
 
-    pinMode(GREEN_BUTTON_PIN, INPUT_PULLUP);
-    greenButton.attach(GREEN_BUTTON_PIN);
+    greenButton.attach(GREEN_BUTTON_PIN, INPUT_PULLUP);
     greenButton.interval(5);
-    pinMode(RED_BUTTON_PIN, INPUT_PULLUP);
-    redButton.attach(RED_BUTTON_PIN);
+    redButton.attach(RED_BUTTON_PIN, INPUT_PULLUP);
     redButton.interval(5);
 
     setState(ready);
@@ -137,30 +135,34 @@ void loop()
         Serial.println("Turn off backlight");
         lcdOffMillis = 0;
     }
+    if (millis() > heartbeatMillis) {
+        sendHeartbeat();
+        heartbeatMillis += HEARTBEAT_INTERVAL;
+    }
     switch (state) {
         case ready:
-            if (readGreenButton() == BUTTON_ON) {
+            if (readGreenButton()) {
                 setState(selecting);
                 selectedStationId = 1;
                 msg("Station selected: ", selectedStationId);
                 delayForStartWatering();
                 return;
             }
-            if (readRedButton() == BUTTON_ON) {
+            if (readRedButton()) {
                 setState(shutdown);
                 msg("System shutdown", "Green to turn on");
                 return;
             }
             break;
         case selecting:
-            if (readGreenButton() == BUTTON_ON) {
+            if (readGreenButton()) {
                 if (++selectedStationId > NUMBER_OF_RELAYS) {
                     selectedStationId = 1;
                 }
                 msg("Station selected: ", selectedStationId);
                 delayForStartWatering();
             }
-            else if (readRedButton() == BUTTON_ON) {
+            else if (readRedButton()) {
                 cancelManualWatering();
                 msg("Manual watering", "cancelled");
                 setState(ready);
@@ -173,7 +175,7 @@ void loop()
             }
             break;
         case watering:
-            if (readRedButton() == BUTTON_ON) {
+            if (readRedButton()) {
                 Serial.println("Manually stopped");
                 stopAllWatering();
                 setState(ready);
@@ -195,7 +197,7 @@ void loop()
             }
             break;
         case shutdown:
-            if (readGreenButton() == BUTTON_ON) {
+            if (readGreenButton()) {
                 setState(ready);
                 msg("Ready", "");
             }
@@ -205,30 +207,26 @@ void loop()
 
 int readGreenButton() {
     greenButton.update();
-    int greenVal = greenButton.read();
-    if (greenVal != greenOldVal) {
+    int greenVal = greenButton.fell();
+    if (greenVal) {
         Serial.print("Green button:");
         Serial.println(greenVal);
-        greenOldVal = greenVal;
-        return greenVal;
     }
-    return -1;
+    return greenVal;
 }
 
 int readRedButton() {
     redButton.update();
-    int redVal = redButton.read();
-    if (redVal != redOldVal) {
+    int redVal = redButton.fell();
+    if (redVal) {
         Serial.print("Red button:");
         Serial.println(redVal);
-        redOldVal = redVal;
-        return redVal;
     }
-    return -1;
+    return redVal;
 }
 
 void receive(const MyMessage &message) {
-    if (message.type==V_STATUS) {
+    if (message.type == V_STATUS) {
         int sensor = message.sensor;
         int value = message.getBool();
         int stationId = sensorIdToIndex(sensor);
