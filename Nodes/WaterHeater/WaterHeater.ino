@@ -30,11 +30,12 @@
  * http://www.mysensors.org/build/relay
  */ 
 
-#define MY_NODE_ID 1
+#define MY_NODE_ID 32
 
 // Enable repeater functionality for this node
 #define MY_REPEATER_FEATURE
 
+#include <MySensorsCustomConfig.h>
 #include <SPI.h>
 #include <MySensors.h>
 #include <Bounce2.h>
@@ -66,8 +67,7 @@ void before() {
     // Set relay to last known state (using eeprom storage) 
     setRelay(loadState(SENSOR_ID_1));
     
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
-    button.attach(BUTTON_PIN);
+    button.attach(BUTTON_PIN, INPUT_PULLUP);
     button.interval(5);
 
     nextHeartbeatMillis = millis() + HEARTBEAT_INTERVAL;
@@ -76,14 +76,14 @@ void before() {
 void presentation()  
 {   
     // Send the sketch version information to the gateway and Controller
-    sendSketchInfo("Water heater", "2.2");
+    sendSketchInfo("Water heater", "3.0");
     // Register sensor to gw (they will be created as child devices)
     present(SENSOR_ID_1, S_LIGHT);
 }
 
 void loop() 
 {
-    if (readButton() == BUTTON_ON) {
+    if (isButtonPushed()) {
         setState(!loadState(SENSOR_ID_1));
     }
     unsigned long now = millis();
@@ -124,14 +124,7 @@ void sendState() {
     send(msgState1.set(state));
 }
 
-int readButton() {
+int isButtonPushed() {
     button.update();
-    int buttonVal = button.read();
-    if (buttonVal != buttonOldVal) {
-        Serial.print("Button: ");
-        Serial.println(buttonVal == BUTTON_ON);
-        buttonOldVal = buttonVal;
-        return buttonVal;
-    }
-    return -1;
+    return button.fell();
 }
