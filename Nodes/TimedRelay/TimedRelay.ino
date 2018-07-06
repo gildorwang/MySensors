@@ -9,14 +9,28 @@ enum State {
     setting,
     counting
 };
-State state;
+State _state;
 
-SevSeg sevseg; // Instantiate a seven segment controller object
+SevSeg _sevseg; // Instantiate a seven segment controller object
 
-ClickEncoder *encoder;
-int16_t last, minutes;
+ClickEncoder *_encoder;
+int16_t _lastMinutes, _minutes;
 
-void timerIsr() { encoder->service(); }
+unsigned long _minutesLastUpdatedByUserMillis = 0;
+
+void timerIsr() {
+    const short BlinkPeriodInMs = 2000;
+    const short DelayBeforeBlinkInMs = 1000;
+
+    unsigned long now = millis();
+    if (now % BlinkPeriodInMs < (BlinkPeriodInMs / 2) && now - _minutesLastUpdatedByUserMillis > DelayBeforeBlinkInMs) {
+        _sevseg.blank();
+    } else {
+        displayMinutes();
+    }
+    // Run the encoder service. It needs to be run in the timer
+    _encoder->service();
+}
 
 void setupSevSeg() {
     byte numDigits = 4;
@@ -27,17 +41,17 @@ void setupSevSeg() {
     bool updateWithDelays = false;        // Default. Recommended
     bool leadingZeros = false;            // Use 'true' if you'd like to keep the leading zeros
 
-    sevseg.begin(hardwareConfig, numDigits, digitPins, segmentPins, resistorsOnSegments, updateWithDelays, leadingZeros);
-    sevseg.setBrightness(10);
+    _sevseg.begin(hardwareConfig, numDigits, digitPins, segmentPins, resistorsOnSegments, updateWithDelays, leadingZeros);
+    _sevseg.setBrightness(10);
 }
 
 void setupEncoder() {
-    encoder = new ClickEncoder(A1, A0, A2);
+    _encoder = new ClickEncoder(A1, A0, A2);
 
     Timer1.initialize(1000);
     Timer1.attachInterrupt(timerIsr);
 
-    last = -1;
+    _lastMinutes = -1;
 }
 
 void setup() {
@@ -47,17 +61,17 @@ void setup() {
     setState(setting);
 }
 
-void displayMinutes(int16_t minutes) {
-    if (minutes < 120) {
-        sevseg.setNumber(minutes);
+void displayMinutes() {
+    if (_minutes < 120) {
+        _sevseg.setNumber(_minutes);
     } else {
-        sevseg.setNumber(minutes / 60 * 100 + (minutes % 60), 2);
+        _sevseg.setNumber(_minutes / 60 * 100 + (_minutes % 60), 2);
     }
-    sevseg.refreshDisplay(); // Must run repeatedly
+    _sevseg.refreshDisplay(); // Must run repeatedly
 }
 
 void loop() {
-    switch (state) {
+    switch (_state) {
     case setting:
         processSettingState();
         break;
@@ -67,27 +81,24 @@ void loop() {
 }
 
 void processSettingState() {
-    minutes += encoder->getValue();
-    if (minutes < 0) {
-        minutes = 0;
-    } else if (minutes > 60 * 100 - 1) {
-        minutes = 60 * 100 - 1;
+    _minutes += _encoder->getValue();
+    if (_minutes < 0) {
+        _minutes = 0;
+    } else if (_minutes > 60 * 100 - 1) {
+        _minutes = 60 * 100 - 1;
     }
-    displayMinutes(minutes);
-
-    if (minutes != last) {
-        last = minutes;
-        Serial.print("Encoder Value: ");
-        Serial.println(minutes);
+    if (_minutes != _lastMinutes) {
+        _lastMinutes = _minutes;
+        _minutesLastUpdatedByUserMillis = millis();
     }
 
-    ClickEncoder::Button b = encoder->getButton();
+    ClickEncoder::Button b = _encoder->getButton();
     if (b != ClickEncoder::Open) {
         switch (b) {
         case ClickEncoder::Pressed:
             break;
         case ClickEncoder::Held:
-            minutes = 0;
+            _minutes = 0;
             break;
         case ClickEncoder::Released:
             break;
@@ -95,9 +106,9 @@ void processSettingState() {
             break;
         case ClickEncoder::DoubleClicked:
             Serial.println("ClickEncoder::DoubleClicked");
-            encoder->setAccelerationEnabled(!encoder->getAccelerationEnabled());
+            _encoder->setAccelerationEnabled(!_encoder->getAccelerationEnabled());
             Serial.print("  Acceleration is ");
-            Serial.println((encoder->getAccelerationEnabled()) ? "enabled" : "disabled");
+            Serial.println((_encoder->getAccelerationEnabled()) ? "enabled" : "disabled");
             break;
         }
     }
@@ -106,5 +117,5 @@ void processSettingState() {
 void setState(State newState) {
     Serial.print("State=");
     Serial.println(newState);
-    state = newState;
+    _state = newState;
 }
