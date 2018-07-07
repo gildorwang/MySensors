@@ -76,7 +76,7 @@ class ControlGroup {
       pinMode(this->SensorPin, INPUT);
       pinMode(this->ControlPin, OUTPUT);
 
-      SetControl(loadState(this->ControlId));
+      SetControl(false);
     }
 
     void Present() {
@@ -88,6 +88,8 @@ class ControlGroup {
       if (message.type == V_LIGHT && message.sensor == this->ControlId) {
         // Operate the door relay
         SetControl(message.getBool());
+        wait(200);
+        SetControl(false);
       }
     }
 
@@ -124,7 +126,7 @@ void setup() {
 void presentation()  
 {   
   // Send the sketch version information to the gateway and Controller
-  sendSketchInfo("Garage controller", "2.0");
+  sendSketchInfo("Garage controller", "2.1");
   door1.Present();
   door2.Present();
 }
