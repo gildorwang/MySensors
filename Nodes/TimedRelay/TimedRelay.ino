@@ -2,12 +2,12 @@
 #include <ClickEncoder.h>
 #include <TimerOne.h>
 // For 7-segment LCD display
-#include "SevSeg.h"
+#include <SevSeg.h>
 
 // State of the system
 enum State {
-    setting,
-    counting
+    SETTING,
+    COUNTING
 };
 State _state;
 
@@ -17,13 +17,14 @@ ClickEncoder *_encoder;
 int16_t _lastMinutes, _minutes;
 
 unsigned long _minutesLastUpdatedByUserMillis = 0;
+unsigned long _lastMinuteMills = 0;
 
 void timerIsr() {
     const short BlinkPeriodInMs = 2000;
     const short DelayBeforeBlinkInMs = 1000;
 
     unsigned long now = millis();
-    if (now % BlinkPeriodInMs < (BlinkPeriodInMs / 2) && now - _minutesLastUpdatedByUserMillis > DelayBeforeBlinkInMs) {
+    if (_state == SETTING && now % BlinkPeriodInMs < (BlinkPeriodInMs / 2) && now - _minutesLastUpdatedByUserMillis > DelayBeforeBlinkInMs) {
         _sevseg.blank();
     } else {
         displayMinutes();
@@ -47,7 +48,8 @@ void setupSevSeg() {
 
 void setupEncoder() {
     _encoder = new ClickEncoder(A1, A0, A2);
-
+    beep(100);
+    delay(100);
     Timer1.initialize(1000);
     Timer1.attachInterrupt(timerIsr);
 
@@ -58,7 +60,7 @@ void setup() {
     Serial.begin(9600);
     setupEncoder();
     setupSevSeg();
-    setState(setting);
+    setState(SETTING);
 }
 
 void displayMinutes() {
@@ -72,10 +74,35 @@ void displayMinutes() {
 
 void loop() {
     switch (_state) {
-    case setting:
+    case SETTING:
         processSettingState();
         break;
-    case counting:
+    case COUNTING:
+        processCountingState();
+        break;
+    }
+}
+
+void processCountingState() {
+    const unsigned long MinuteInMs = 60 * 1000L;
+    unsigned long now = millis();
+    if (now - _lastMinuteMills >= MinuteInMs) {
+        _minutes--;
+        _lastMinuteMills = now;
+    }
+    if (_minutes <= 0) {
+        // Time's out
+        _minutes = 0;
+        beep(1000);
+        setState(SETTING);
+    }
+
+    ClickEncoder::Button b = _encoder->getButton();
+    switch (b) {
+    case ClickEncoder::Clicked:
+        setState(SETTING);
+        break;
+    case ClickEncoder::DoubleClicked:
         break;
     }
 }
@@ -95,20 +122,13 @@ void processSettingState() {
     ClickEncoder::Button b = _encoder->getButton();
     if (b != ClickEncoder::Open) {
         switch (b) {
-        case ClickEncoder::Pressed:
-            break;
         case ClickEncoder::Held:
             _minutes = 0;
             break;
-        case ClickEncoder::Released:
-            break;
         case ClickEncoder::Clicked:
+            setState(COUNTING);
             break;
         case ClickEncoder::DoubleClicked:
-            Serial.println("ClickEncoder::DoubleClicked");
-            _encoder->setAccelerationEnabled(!_encoder->getAccelerationEnabled());
-            Serial.print("  Acceleration is ");
-            Serial.println((_encoder->getAccelerationEnabled()) ? "enabled" : "disabled");
             break;
         }
     }
@@ -118,4 +138,15 @@ void setState(State newState) {
     Serial.print("State=");
     Serial.println(newState);
     _state = newState;
+    switch (newState) {
+    case SETTING:
+        break;
+    case COUNTING:
+        _lastMinuteMills = millis();
+        break;
+    }
+}
+
+void beep(unsigned long length) {
+    tone(17, 3200, length);
 }
