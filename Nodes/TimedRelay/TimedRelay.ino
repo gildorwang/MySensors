@@ -4,6 +4,11 @@
 // For 7-segment LCD display
 #include <SevSeg.h>
 
+#define SPEAKER_PIN 18
+#define RELAY_PIN 17
+#define RELAY_ON LOW
+#define RELAY_OFF HIGH
+
 // State of the system
 enum State {
     SETTING,
@@ -16,8 +21,30 @@ SevSeg _sevseg; // Instantiate a seven segment controller object
 ClickEncoder *_encoder;
 int16_t _lastMinutes, _minutes;
 
+bool _relayState = true;
+
 unsigned long _minutesLastUpdatedByUserMillis = 0;
 unsigned long _lastMinuteMills = 0;
+
+void setup() {
+    Serial.begin(9600);
+    setupEncoder();
+    setupSevSeg();
+    pinMode(RELAY_PIN, OUTPUT);
+    setRelay();
+    setState(SETTING);
+}
+
+void loop() {
+    switch (_state) {
+    case SETTING:
+        processSettingState();
+        break;
+    case COUNTING:
+        processCountingState();
+        break;
+    }
+}
 
 void timerIsr() {
     const short BlinkPeriodInMs = 2000;
@@ -56,13 +83,6 @@ void setupEncoder() {
     _lastMinutes = -1;
 }
 
-void setup() {
-    Serial.begin(9600);
-    setupEncoder();
-    setupSevSeg();
-    setState(SETTING);
-}
-
 void displayMinutes() {
     if (_minutes < 120) {
         _sevseg.setNumber(_minutes);
@@ -70,17 +90,6 @@ void displayMinutes() {
         _sevseg.setNumber(_minutes / 60 * 100 + (_minutes % 60), 2);
     }
     _sevseg.refreshDisplay(); // Must run repeatedly
-}
-
-void loop() {
-    switch (_state) {
-    case SETTING:
-        processSettingState();
-        break;
-    case COUNTING:
-        processCountingState();
-        break;
-    }
 }
 
 void processCountingState() {
@@ -93,6 +102,7 @@ void processCountingState() {
     if (_minutes <= 0) {
         // Time's out
         _minutes = 0;
+        flipRelay();
         beep(1000);
         setState(SETTING);
     }
@@ -103,6 +113,7 @@ void processCountingState() {
         setState(SETTING);
         break;
     case ClickEncoder::DoubleClicked:
+        flipRelay();
         break;
     }
 }
@@ -129,6 +140,7 @@ void processSettingState() {
             setState(COUNTING);
             break;
         case ClickEncoder::DoubleClicked:
+            flipRelay();
             break;
         }
     }
@@ -147,6 +159,17 @@ void setState(State newState) {
     }
 }
 
+void flipRelay() {
+    _relayState = !_relayState;
+    Serial.print("Turning relay ");
+    Serial.println(_relayState ? "ON" : "OFF");
+    setRelay();
+}
+
+void setRelay() {
+    digitalWrite(RELAY_PIN, _relayState ? RELAY_ON : RELAY_OFF);
+}
+
 void beep(unsigned long length) {
-    tone(17, 3200, length);
+    tone(SPEAKER_PIN, 3200, length);
 }
