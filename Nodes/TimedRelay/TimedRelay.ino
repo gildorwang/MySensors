@@ -1,3 +1,32 @@
+/**
+ * This project is a relay with a timer which turns the relay on or off after the preset duration.
+ * It's assembled into an AC 110V outlet enclosure to control the outlet power.
+ * 
+ * User can use the rotary encoder to dial and select the desired duration, and then press down the
+ * rotary encoder to start countdown. When the countdown is running, user can press down the rotary
+ * encoder again to stop the countdown immediately without changing the relay status. If the count-
+ * down runs to 0, the relay is flipped. 
+ *
+ * When setting the duration, user can press and hold the rotary encoder to reset the duration to 0.
+ * 
+ * At any time, if the rotary encoder is pressed twice (doubleclick), the relay status flips.
+ * 
+ * Hardware includes:
+ *  - An Arduino Pro Mini 5V
+ *  - A rotary encoder, which is the input device
+ *  - A 4 digit 7-segment LCD display to indicate the remaining time
+ *  - Two LEDs, one in red and the other in green, soldered to replace the original signal LEDs of
+ *    the relay module
+ *  - A 5V low-on relay to control the outlet
+ *  - An AC 110V - DC 5V buck regulator
+ * 
+ * TODO:
+ *  - The relay state needs to be stored into the EEPROM in case there's a power outage, and the
+ *    load will be powered unexpectedly because it's reset to ON state everytime the system powers
+ *    on.
+ * 
+ */
+
 // For rotary encoder with button
 #include <ClickEncoder.h>
 #include <TimerOne.h>
