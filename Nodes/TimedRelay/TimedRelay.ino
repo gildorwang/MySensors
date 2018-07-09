@@ -3,6 +3,7 @@
 #include <TimerOne.h>
 // For 7-segment LCD display
 #include <SevSeg.h>
+#include <TimerFreeTone.h>
 
 #define SPEAKER_PIN 18
 #define RELAY_PIN 17
@@ -75,10 +76,11 @@ void setupSevSeg() {
 
 void setupEncoder() {
     _encoder = new ClickEncoder(A1, A0, A2);
-    beep(100);
-    delay(100);
     Timer1.initialize(1000);
     Timer1.attachInterrupt(timerIsr);
+    beep(100);
+    delay(100);
+    beep(100);
 
     _lastMinutes = -1;
 }
@@ -103,8 +105,11 @@ void processCountingState() {
         // Time's out
         _minutes = 0;
         flipRelay();
-        beep(1000);
+        beep(100);
+        delay(100);
+        beep(100);
         setState(SETTING);
+        return;
     }
 
     ClickEncoder::Button b = _encoder->getButton();
@@ -171,5 +176,5 @@ void setRelay() {
 }
 
 void beep(unsigned long length) {
-    tone(SPEAKER_PIN, 3200, length);
+    TimerFreeTone(SPEAKER_PIN, 4500, length);
 }
