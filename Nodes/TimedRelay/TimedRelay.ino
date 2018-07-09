@@ -3,6 +3,7 @@
 #include <TimerOne.h>
 // For 7-segment LCD display
 #include <SevSeg.h>
+// Use TimerFreeTone as others interfere with built-in timers
 #include <TimerFreeTone.h>
 
 #define SPEAKER_PIN 18
