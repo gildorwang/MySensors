@@ -40,6 +40,7 @@
 #define RELAY_OFF HIGH // GPIO value to write to turn off attached relay
 #define GREEN_BUTTON_PIN 8
 #define RED_BUTTON_PIN 9
+#define MAX_SEND_ATTEMPTS 5
 
 #define SENSOR_ID_LCD 0
 
@@ -68,6 +69,8 @@ unsigned long _waterOffMillis[NUMBER_OF_RELAYS] = {0};
 const unsigned long StartWateringDelay = 5 * 1000;
 // Millis to start manual watering
 unsigned long _startWateringMillis = 0;
+// Flag to indicate if an ACK message has been received for the last message sent
+bool _acked = false;
 
 // State of the system
 enum State {
@@ -227,6 +230,11 @@ int isRedButtonPushed() {
 }
 
 void receive(const MyMessage &message) {
+    if (message.isAck()) {
+        _acked = true;
+        Serial.println("ACK received.");
+        return;
+    }
     if (message.type == V_STATUS) {
         int sensor = message.sensor;
         int value = message.getBool();
@@ -295,13 +303,24 @@ void setStation(int index, int value) {
 
     // Report state to controller
     MyMessage message = MyMessage(indexToSensorId(index), V_STATUS);
-    send(message.set(value ? 1 : 0));
+    message.set(value ? 1 : 0);
+    _acked = false;
+    for (byte i = 0; i < MAX_SEND_ATTEMPTS; i++) {
+        send(message, true);
+        wait(40);
+        if (_acked) {
+            Serial.println("GW ACK");
+            break;
+        }
+        Serial.println("GW NACK");
+        wait(40 * (1 << i));
+    }
 }
 
 void stopAllWatering() {
     for (int index = 1; index <= NUMBER_OF_RELAYS; ++index) {
         setStation(index, LOW);
-        delay(50);
+        wait(50);
     }
     msg("Stopped all", "stations");
 }
