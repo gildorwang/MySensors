@@ -35,7 +35,7 @@
 
 #define RELAY_1_PIN  3  // Arduino Digital I/O pin number for first relay (second on pin+1 etc)
 #define RELAY_1_SENSOR_ID 1 // Sensor ID for the first relay
-#define NUMBER_OF_RELAYS 2 // Total number of attached relays
+#define NUMBER_OF_RELAYS 3 // Total number of attached relays
 #define RELAY_ON LOW  // GPIO value to write to turn on attached relay
 #define RELAY_OFF HIGH // GPIO value to write to turn off attached relay
 #define GREEN_BUTTON_PIN 8
@@ -52,22 +52,22 @@
 // - SCL: A5
 LiquidCrystal_I2C lcd(0x3F, 16, 2); // set the LCD address to 0x3F for a 16 chars and 2 line display
 
-#define NODE_VERSION "3.3"
+#define NODE_VERSION "3.4"
 
 // LCD backlight on duration
-const unsigned long lcdOnDurationMillis = 5000;
+const unsigned long LcdOnDurationMillis = 5000;
 // Scheduled LCD backlight off time
-unsigned long lcdOffMillis = 0;
+unsigned long _lcdOffMillis = 0;
 // Scheduled heartbeat time
-unsigned long heartbeatMillis = 0;
+unsigned long _heartbeatMillis = 0;
 // The maximum watering time limit, in case the controller is down or lost connectivity
-const unsigned long maxWaterDuration = 30L * 60L * 1000L;
+const unsigned long MaxWaterDuration = 30L * 60L * 1000L;
 // Scheduled off time for each station
-unsigned long waterOffMillis[NUMBER_OF_RELAYS] = {0};
+unsigned long _waterOffMillis[NUMBER_OF_RELAYS] = {0};
 // Time to wait before starting manual watering when selecting stations
-const unsigned long startWateringDelay = 5 * 1000;
+const unsigned long StartWateringDelay = 5 * 1000;
 // Millis to start manual watering
-unsigned long startWateringMillis = 0;
+unsigned long _startWateringMillis = 0;
 
 // State of the system
 enum State {
@@ -85,12 +85,6 @@ int selectedStationId = 0;
 // Reader for the green and the red buttons
 Bounce greenButton = Bounce();
 Bounce redButton = Bounce();
-
-// Message to send to controller for station state change
-MyMessage stationStatusMsg[NUMBER_OF_RELAYS] = {
-    MyMessage(RELAY_1_SENSOR_ID, V_STATUS),
-    MyMessage(RELAY_1_SENSOR_ID + 1, V_STATUS)
-};
 
 void before() {
     // initialize the lcd
@@ -132,14 +126,14 @@ void presentation()
 
 void loop()
 {
-    if (lcdOffMillis != 0 && millis() > lcdOffMillis && state != watering) {
+    if (_lcdOffMillis != 0 && millis() > _lcdOffMillis && state != watering) {
         lcd.noBacklight();
         Serial.println("Turn off backlight");
-        lcdOffMillis = 0;
+        _lcdOffMillis = 0;
     }
-    if (millis() > heartbeatMillis) {
+    if (millis() > _heartbeatMillis) {
         sendHeartbeat();
-        heartbeatMillis += HEARTBEAT_INTERVAL;
+        _heartbeatMillis += HEARTBEAT_INTERVAL;
     }
     switch (state) {
         case ready:
@@ -171,7 +165,7 @@ void loop()
                 setState(ready);
                 return;
             }
-            if (startWateringMillis != 0 && millis() >= startWateringMillis) {
+            if (_startWateringMillis != 0 && millis() >= _startWateringMillis) {
                 setStation(selectedStationId, HIGH);
                 setState(watering);
                 return;
@@ -189,11 +183,11 @@ void loop()
                 return;
             }
             for (int index = 1; index <= NUMBER_OF_RELAYS; ++index) {
-                unsigned long offMillis = waterOffMillis[index - 1];
+                unsigned long offMillis = _waterOffMillis[index - 1];
                 if (offMillis != 0 && millis() >= offMillis) {
                     Serial.print("Max watering time limit reached for station: ");
                     Serial.println(index);
-                    waterOffMillis[index - 1] = 0;
+                    _waterOffMillis[index - 1] = 0;
                     setStation(index, LOW);
                     if (!isAnyStationOn()) {
                         msg("All stations OFF", "Stand by");
@@ -292,20 +286,22 @@ void setStation(int index, int value) {
 
     if (value) {
         // If turning station ON, schedule the max off time
-        waterOffMillis[index - 1] = millis() + maxWaterDuration;
+        _waterOffMillis[index - 1] = millis() + MaxWaterDuration;
     }
     else {
         // Otherwise clear the timer
-        waterOffMillis[index - 1] = 0;
+        _waterOffMillis[index - 1] = 0;
     }
 
     // Report state to controller
-    send(stationStatusMsg[index - 1].set(value ? 1 : 0));
+    MyMessage message = MyMessage(indexToSensorId(index), V_STATUS);
+    send(message.set(value ? 1 : 0));
 }
 
 void stopAllWatering() {
     for (int index = 1; index <= NUMBER_OF_RELAYS; ++index) {
         setStation(index, LOW);
+        delay(50);
     }
     msg("Stopped all", "stations");
 }
@@ -320,11 +316,11 @@ bool isAnyStationOn() {
 }
 
 void delayForStartWatering() {
-    startWateringMillis = millis() + startWateringDelay;
+    _startWateringMillis = millis() + StartWateringDelay;
 }
 
 void cancelManualWatering() {
-    startWateringMillis = 0;
+    _startWateringMillis = 0;
 }
 
 int indexToSensorId(int index) {
@@ -357,7 +353,7 @@ void setState(State newState) {
 
 void lcdlight() {
     lcd.backlight();
-    lcdOffMillis = millis() + lcdOnDurationMillis;
+    _lcdOffMillis = millis() + LcdOnDurationMillis;
 }
 
 void msg(const char line1[], const char line2[]) {
