@@ -36,8 +36,8 @@
 #define RELAY_1_PIN  3  // Arduino Digital I/O pin number for first relay (second on pin+1 etc)
 #define RELAY_1_SENSOR_ID 1 // Sensor ID for the first relay
 #define NUMBER_OF_RELAYS 2 // Total number of attached relays
-#define RELAY_ON HIGH  // GPIO value to write to turn on attached relay
-#define RELAY_OFF LOW // GPIO value to write to turn off attached relay
+#define RELAY_ON LOW  // GPIO value to write to turn on attached relay
+#define RELAY_OFF HIGH // GPIO value to write to turn off attached relay
 #define GREEN_BUTTON_PIN 8
 #define RED_BUTTON_PIN 9
 
@@ -52,7 +52,7 @@
 // - SCL: A5
 LiquidCrystal_I2C lcd(0x3F, 16, 2); // set the LCD address to 0x3F for a 16 chars and 2 line display
 
-#define NODE_VERSION "3.2"
+#define NODE_VERSION "3.3"
 
 // LCD backlight on duration
 const unsigned long lcdOnDurationMillis = 5000;
