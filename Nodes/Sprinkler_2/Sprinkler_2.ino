@@ -53,7 +53,7 @@
 // - SCL: A5
 LiquidCrystal_I2C lcd(0x3F, 16, 2); // set the LCD address to 0x3F for a 16 chars and 2 line display
 
-#define NODE_VERSION "3.4"
+#define NODE_VERSION "3.5"
 
 // LCD backlight on duration
 const unsigned long LcdOnDurationMillis = 5000;
@@ -169,7 +169,7 @@ void loop()
                 return;
             }
             if (_startWateringMillis != 0 && millis() >= _startWateringMillis) {
-                setStation(selectedStationId, HIGH);
+                setStation(selectedStationId, HIGH, true);
                 setState(watering);
                 return;
             }
@@ -191,7 +191,7 @@ void loop()
                     Serial.print("Max watering time limit reached for station: ");
                     Serial.println(index);
                     _waterOffMillis[index - 1] = 0;
-                    setStation(index, LOW);
+                    setStation(index, LOW, true);
                     if (!isAnyStationOn()) {
                         msg("All stations OFF", "Stand by");
                         setState(ready);
@@ -249,21 +249,21 @@ void receive(const MyMessage &message) {
         switch (state) {
             case ready:
                 if (value) {
-                    setStation(stationId, value);
+                    setStation(stationId, value, false);
                     Serial.println("Start watering.");
                     setState(watering);
                 }
                 break;
             case selecting:
                 if (value) {
-                    setStation(stationId, value);
+                    setStation(stationId, value, false);
                     cancelManualWatering();
                     setState(watering);
                 }
                 break;
             case watering:
                 if (!value) {
-                    setStation(stationId, value);
+                    setStation(stationId, value, false);
                     if (!isAnyStationOn()) {
                         msg("All stations OFF", "Stand by");
                         setState(ready);
@@ -281,7 +281,7 @@ void receive(const MyMessage &message) {
     }
 }
 
-void setStation(int index, int value) {
+void setStation(int index, int value, bool sendState) {
     char str[100];
     snprintf(str, sizeof(str), "Station %d:", index);
     msg(str, value ? "ON" : "OFF");
@@ -299,6 +299,10 @@ void setStation(int index, int value) {
     else {
         // Otherwise clear the timer
         _waterOffMillis[index - 1] = 0;
+    }
+
+    if (!sendState) {
+        return;
     }
 
     // Report state to controller
@@ -319,7 +323,7 @@ void setStation(int index, int value) {
 
 void stopAllWatering() {
     for (int index = 1; index <= NUMBER_OF_RELAYS; ++index) {
-        setStation(index, LOW);
+        setStation(index, LOW, true);
         wait(50);
     }
     msg("Stopped all", "stations");
