@@ -63,8 +63,7 @@
 //#define MY_DEFAULT_RX_LED_PIN  6  // Receive led pin
 //#define MY_DEFAULT_TX_LED_PIN  5  // the PCB, on board LED
 
-//#include "..\..\CustomConfig\CustomConfig.h"
-#include <MySensorsCustomConfig.h>
+#include <MySensorsCommon.h>
 #include <MySensors.h>
 
 void setup()
