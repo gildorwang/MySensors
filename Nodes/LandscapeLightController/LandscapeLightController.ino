@@ -33,7 +33,7 @@ void setup()
 void presentation()
 {
     // Send the sketch version information to the gateway and Controller
-    sendSketchInfo("Landscape Light Control", "3.0");
+    sendSketchInfo("Landscape Light Control", "3.1");
     
     for (ISensor* sensor : _sensors) {
         sensor->present();
@@ -55,7 +55,7 @@ void loop() {
 
 void receive(const MyMessage &message) {
     if (message.type == V_PERCENTAGE && message.sensor == CHILD_ID_DIMMER) {
-        int value = message.getByte();
+        uint8_t value = message.getByte();
         Serial.print("Incoming dimmer value: ");
         Serial.print(value);
         _dimmerSensor.set(value);

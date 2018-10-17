@@ -17,6 +17,10 @@ class DimmerSensor : public ISensor
             Serial.print("Initializing DimmerSensor with pin ");
             Serial.println(this->_pin);
             ::pinMode(this->_pin, OUTPUT);
+            uint8_t prevValue = ::loadState(this->_sensorId);
+            Serial.print("Restoring dimmer value to ");
+            Serial.println(prevValue);
+            ::analogWrite(this->_pin, prevValue);
         }
 
         void present() {
@@ -27,7 +31,8 @@ class DimmerSensor : public ISensor
         }
 
         void set(uint8_t percentage) {
-            int outputValue = ::map(percentage, 0, 100, 0, 255);
+            uint8_t outputValue = ::map(percentage, 0, 100, 0, 255);
+            ::saveState(this->_sensorId, outputValue);
             #ifdef MY_DEBUG
             Serial.print("Setting DimmerSensor value to ");
             Serial.println(outputValue);
