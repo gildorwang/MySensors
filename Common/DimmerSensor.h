@@ -11,12 +11,14 @@ class DimmerSensor : public ISensor
         DimmerSensor(uint8_t pin, uint8_t sensorId, MessageSender messageSender)
             : _pin(pin), _sensorId(sensorId), _messageSender(messageSender)
         {
+            // Initialize the dimmer to 50%
+            ::pinMode(this->_pin, OUTPUT);
+            ::analogWrite(this->_pin, 127);
         }
 
         void setup() {
             Serial.print("Initializing DimmerSensor with pin ");
             Serial.println(this->_pin);
-            ::pinMode(this->_pin, OUTPUT);
             uint8_t prevValue = ::loadState(this->_sensorId);
             Serial.print("Restoring dimmer value to ");
             Serial.println(prevValue);
