@@ -31,7 +31,7 @@
  * 
  */
 
-#define MY_NODE_ID 12
+#define MY_NODE_ID 14
 
 // Enabled repeater feature for this node
 #define MY_REPEATER_FEATURE
@@ -74,7 +74,7 @@ DHT dht;
 void presentation()  
 { 
   // Send the sketch version information to the gateway
-  sendSketchInfo("TemperatureAndHumidity_2", "3.0");
+  sendSketchInfo("TemperatureAndHumidity_4", "2.2");
   
   // Register all sensors to gw (they will be created as child devices)
   present(CHILD_ID_HUM, S_HUM);

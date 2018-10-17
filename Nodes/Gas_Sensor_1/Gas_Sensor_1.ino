@@ -1,215 +1,75 @@
-/**
- * The MySensors Arduino library handles the wireless radio link and protocol
- * between your home built sensors/actuators and HA controller of choice.
- * The sensors forms a self healing radio network with optional repeaters. Each
- * repeater and gateway builds a routing tables in EEPROM which keeps track of the
- * network topology allowing messages to be routed to nodes.
- *
- * Created by Henrik Ekblad <henrik.ekblad@mysensors.org>
- * Copyright (C) 2013-2015 Sensnology AB
- * Full contributor list: https://github.com/mysensors/Arduino/graphs/contributors
- *
- * Documentation: http://www.mysensors.org
- * Support Forum: http://forum.mysensors.org
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- *******************************
- *
- * DESCRIPTION
- *
- * Connect the MQ2 sensor as follows :
- *
- *   A H A   >>> 5V
- *   B       >>> A0
- *   H       >>> GND
- *   B       >>> 10K ohm >>> GND
- *
- * Contribution: epierre
- * Based on http://sandboxelectronics.com/?p=165
- * License: Attribution-NonCommercial-ShareAlike 3.0 Unported (CC BY-NC-SA 3.0)
- * Modified by HEK to work in 1.4
- *
- */
-
-#define MY_NODE_ID 9
+#define MY_NODE_ID 21
 
 // Enable repeater functionality for this node
 #define MY_REPEATER_FEATURE
 
-#include <MySensors.h>
+#include <MySensorsCommon.h>
+#include <DhtSensor.h>
+#include <GasSensor.h>
+#include <MotionSensor.h>
 
-#define     CHILD_ID_MQ                   0
+#define         CHILD_ID_MQ                   0
+#define         CHILD_ID_MOTION               1
+#define         CHILD_ID_TEMPERATURE          2
+#define         CHILD_ID_HUMIDITY             3
 /************************Hardware Related Macros************************************/
-#define     MQ_SENSOR_ANALOG_PIN         (0)  //define which analog input channel you are going to use
-#define         RL_VALUE                     (5)     //define the load resistance on the board, in kilo ohms
-#define         RO_CLEAN_AIR_FACTOR          (9.83)  //RO_CLEAR_AIR_FACTOR=(Sensor resistance in clean air)/RO,
-//which is derived from the chart in datasheet
-/***********************Software Related Macros************************************/
-#define         CALIBARAION_SAMPLE_TIMES     (50)    //define how many samples you are going to take in the calibration phase
-#define         CALIBRATION_SAMPLE_INTERVAL  (500)   //define the time interal(in milisecond) between each samples in the
-//cablibration phase
-#define         READ_SAMPLE_INTERVAL         (50)    //define how many samples you are going to take in normal operation
-#define         READ_SAMPLE_TIMES            (5)     //define the time interal(in milisecond) between each samples in
-//normal operation
-/**********************Application Related Macros**********************************/
-#define         GAS_LPG                      (0)
-#define         GAS_CO                       (1)
-#define         GAS_SMOKE                    (2)
-/*****************************Globals***********************************************/
-unsigned long SLEEP_TIME = 30000; // Sleep time between reads (in milliseconds)
-unsigned long nextUpdateMillis = 0;
+#define         MQ_SENSOR_ANALOG_PIN         (0)  //define which analog input channel you are going to use
+#define         MOTION_SENSOR_PIN            (3)  //define which digital input pin to use for motion sensor
+#define         DHT_PIN                      (4)  //define which digital input pin to use for dht pin
 
-//VARIABLES
-float Ro = 10000.0;    // this has to be tuned 10K Ohm
-int val = 0;           // variable to store the value coming from the sensor
-float valMQ =0.0;
-float lastMQ =0.0;
-float           LPGCurve[3]  =  {2.3,0.21,-0.47};   //two points are taken from the curve.
-//with these two points, a line is formed which is "approximately equivalent"
-//to the original curve.
-//data format:{ x, y, slope}; point1: (lg200, 0.21), point2: (lg10000, -0.59)
-float           COCurve[3]  =  {2.3,0.72,-0.34};    //two points are taken from the curve.
-//with these two points, a line is formed which is "approximately equivalent"
-//to the original curve.
-//data format:{ x, y, slope}; point1: (lg200, 0.72), point2: (lg10000,  0.15)
-float           SmokeCurve[3] = {2.3,0.53,-0.44};   //two points are taken from the curve.
-//with these two points, a line is formed which is "approximately equivalent"
-//to the original curve.
-//data format:{ x, y, slope}; point1: (lg200, 0.53), point2:(lg10000,-0.22)
+const long UpdateInterval = 30000; // Wait time between reads (in milliseconds)
+unsigned long _nextUpdateMillis = 0;
+volatile bool _interruptted = false;
 
-MyMessage msg(CHILD_ID_MQ, V_LEVEL);
+MessageSender _messageSender;
+DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender);
+GasSensor _gasSensor(MQ_SENSOR_ANALOG_PIN, CHILD_ID_MQ, _messageSender);
+MotionSensor _motionSensor(MOTION_SENSOR_PIN, CHILD_ID_MOTION, _messageSender);
+ISensor* _sensors[3] = { &_gasSensor, &_dhtSensor, &_motionSensor };
+
+void isr() {
+    _interruptted = true;
+}
 
 void setup()
 {
-    Ro = MQCalibration(MQ_SENSOR_ANALOG_PIN);         //Calibrating the sensor. Please make sure the sensor is in clean air
+    Serial.println("Setting up sensors...");
+    for (ISensor* sensor : _sensors) {
+        sensor->setup();
+    }
+
+    Serial.println("Setting up interrupt...");
+    attachInterrupt(digitalPinToInterrupt(MOTION_SENSOR_PIN), isr, CHANGE);
 }
 
 void presentation()
 {
     // Send the sketch version information to the gateway and Controller
-    sendSketchInfo("Gas Sensor 1", "2.0");
-
-    // Register all sensors to gateway (they will be created as child devices)
-    present(CHILD_ID_MQ, S_AIR_QUALITY);
+    sendSketchInfo("Garage Gas Sensor", "3.1");
+    
+    for (ISensor* sensor : _sensors) {
+        sensor->present();
+        delay(40);
+    }
 }
 
 void loop()
 {
     unsigned long now = millis();
-    if (now > nextUpdateMillis) {
-        nextUpdateMillis = now + SLEEP_TIME;
-        uint16_t valMQ = MQGetGasPercentage(MQRead(MQ_SENSOR_ANALOG_PIN)/Ro,GAS_CO);
-        Serial.println(val);
-    
-        Serial.print("LPG:");
-        Serial.print(MQGetGasPercentage(MQRead(MQ_SENSOR_ANALOG_PIN)/Ro,GAS_LPG) );
-        Serial.print( "ppm" );
-        Serial.print("    ");
-        Serial.print("CO:");
-        Serial.print(MQGetGasPercentage(MQRead(MQ_SENSOR_ANALOG_PIN)/Ro,GAS_CO) );
-        Serial.print( "ppm" );
-        Serial.print("    ");
-        Serial.print("SMOKE:");
-        Serial.print(MQGetGasPercentage(MQRead(MQ_SENSOR_ANALOG_PIN)/Ro,GAS_SMOKE) );
-        Serial.print( "ppm" );
-        Serial.print("\n");
-    
-        send(msg.set((int16_t)ceil(valMQ)));
+    if (_interruptted) {
+        _interruptted = false;
+        _motionSensor.report();
+    }
+    if (now > _nextUpdateMillis) {
+        _nextUpdateMillis = now + UpdateInterval;
+        
+        for (ISensor* sensor : _sensors) {
+            sensor->report();
+            wait(40);
+        }
     }
 }
 
-/****************** MQResistanceCalculation ****************************************
-Input:   raw_adc - raw value read from adc, which represents the voltage
-Output:  the calculated sensor resistance
-Remarks: The sensor and the load resistor forms a voltage divider. Given the voltage
-         across the load resistor and its resistance, the resistance of the sensor
-         could be derived.
-************************************************************************************/
-float MQResistanceCalculation(int raw_adc)
-{
-    return ( ((float)RL_VALUE*(1023-raw_adc)/raw_adc));
-}
-
-/***************************** MQCalibration ****************************************
-Input:   mq_pin - analog channel
-Output:  Ro of the sensor
-Remarks: This function assumes that the sensor is in clean air. It use
-         MQResistanceCalculation to calculates the sensor resistance in clean air
-         and then divides it with RO_CLEAN_AIR_FACTOR. RO_CLEAN_AIR_FACTOR is about
-         10, which differs slightly between different sensors.
-************************************************************************************/
-float MQCalibration(int mq_pin)
-{
-    int i;
-    float val=0;
-
-    for (i=0; i<CALIBARAION_SAMPLE_TIMES; i++) {          //take multiple samples
-        val += MQResistanceCalculation(analogRead(mq_pin));
-        delay(CALIBRATION_SAMPLE_INTERVAL);
-    }
-    val = val/CALIBARAION_SAMPLE_TIMES;                   //calculate the average value
-
-    val = val/RO_CLEAN_AIR_FACTOR;                        //divided by RO_CLEAN_AIR_FACTOR yields the Ro
-    //according to the chart in the datasheet
-
-    return val;
-}
-/*****************************  MQRead *********************************************
-Input:   mq_pin - analog channel
-Output:  Rs of the sensor
-Remarks: This function use MQResistanceCalculation to caculate the sensor resistenc (Rs).
-         The Rs changes as the sensor is in the different consentration of the target
-         gas. The sample times and the time interval between samples could be configured
-         by changing the definition of the macros.
-************************************************************************************/
-float MQRead(int mq_pin)
-{
-    int i;
-    float rs=0;
-
-    for (i=0; i<READ_SAMPLE_TIMES; i++) {
-        rs += MQResistanceCalculation(analogRead(mq_pin));
-        delay(READ_SAMPLE_INTERVAL);
-    }
-
-    rs = rs/READ_SAMPLE_TIMES;
-
-    return rs;
-}
-
-/*****************************  MQGetGasPercentage **********************************
-Input:   rs_ro_ratio - Rs divided by Ro
-         gas_id      - target gas type
-Output:  ppm of the target gas
-Remarks: This function passes different curves to the MQGetPercentage function which
-         calculates the ppm (parts per million) of the target gas.
-************************************************************************************/
-int MQGetGasPercentage(float rs_ro_ratio, int gas_id)
-{
-    if ( gas_id == GAS_LPG ) {
-        return MQGetPercentage(rs_ro_ratio,LPGCurve);
-    } else if ( gas_id == GAS_CO ) {
-        return MQGetPercentage(rs_ro_ratio,COCurve);
-    } else if ( gas_id == GAS_SMOKE ) {
-        return MQGetPercentage(rs_ro_ratio,SmokeCurve);
-    }
-
-    return 0;
-}
-
-/*****************************  MQGetPercentage **********************************
-Input:   rs_ro_ratio - Rs divided by Ro
-         pcurve      - pointer to the curve of the target gas
-Output:  ppm of the target gas
-Remarks: By using the slope and a point of the line. The x(logarithmic value of ppm)
-         of the line could be derived if y(rs_ro_ratio) is provided. As it is a
-         logarithmic coordinate, power of 10 is used to convert the result to non-logarithmic
-         value.
-************************************************************************************/
-int  MQGetPercentage(float rs_ro_ratio, float *pcurve)
-{
-    return (pow(10,( ((log(rs_ro_ratio)-pcurve[1])/pcurve[2]) + pcurve[0])));
+void receive(const MyMessage &message) {
+  _messageSender.handleAck(message);
 }

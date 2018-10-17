@@ -28,12 +28,13 @@
  * process() frequently. Repeaters should never sleep. 
  */
 
-#define MY_NODE_ID 11
-#define HEARTBEAT_INTERVAL 30000
+#define MY_NODE_ID 3
+#define HEARTBEAT_INTERVAL 3000
 
 // Enabled repeater feature for this node
 #define MY_REPEATER_FEATURE
 
+#include <MySensorsCustomConfig.h>
 #include <SPI.h>
 #include <MySensors.h>
 
@@ -46,7 +47,7 @@ void setup() {
 void presentation()  
 {  
   //Send the sensor node sketch version information to the gateway
-  sendSketchInfo("Repeater Node 1", "2.1");
+  sendSketchInfo("Repeater Node 1", "3.0");
 }
 
 void loop() 
