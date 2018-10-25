@@ -3,9 +3,6 @@
 #include <SPI.h>
 #include <DHT.h>
 
-// Set this offset if the sensor has a permanent small offset to the real temperatures
-#define SENSOR_TEMP_OFFSET 0
-
 class DhtSensor : public ISensor
 {
 private:
@@ -15,19 +12,22 @@ private:
     bool _isMetric;
     DHT _dht;
     MessageSender _messageSender;
+    // Set this offset if the sensor has a permanent small offset to the real temperatures
+    float _temperatureOffset;
 public:
-    DhtSensor(uint8_t pin, uint8_t temperatureSensorId, uint8_t humiditySensorId, MessageSender messageSender) {
-        this->_pin = pin;
-        this->_temperatureSensorId = temperatureSensorId;
-        this->_humiditySensorId = humiditySensorId;
-        this->_messageSender = messageSender;
+    DhtSensor(uint8_t pin, uint8_t temperatureSensorId, uint8_t humiditySensorId, MessageSender messageSender, float temperatureOffset = 0)
+        : _pin(pin), _temperatureSensorId(temperatureSensorId), _humiditySensorId(humiditySensorId), _messageSender(messageSender), _temperatureOffset(temperatureOffset)
+    { }
+
+    void setup() {
+        this->_dht.setup(this->_pin); // set data pin of DHT sensor
     }
 
     void present() {
-        this->_dht.setup(this->_pin); // set data pin of DHT sensor
         ::present(this->_temperatureSensorId, S_TEMP);
         ::delay(40);
         ::present(this->_humiditySensorId, S_HUM);
+        ::delay(40);
         this->_isMetric = getControllerConfig().isMetric;
         Serial.print("Unit: ");
         Serial.println(this->_isMetric ? "metric" : "imperial");
@@ -40,7 +40,7 @@ public:
             if (!this->_isMetric) {
                 temperature = this->_dht.toFahrenheit(temperature);
             }
-            temperature += SENSOR_TEMP_OFFSET;
+            temperature += this->_temperatureOffset;
         }
         return temperature;
     }

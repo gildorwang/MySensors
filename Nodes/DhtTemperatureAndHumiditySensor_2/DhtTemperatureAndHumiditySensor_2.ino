@@ -15,7 +15,7 @@
 
 unsigned long _nextUpdateMillis = 0;
 MessageSender _messageSender;
-DhtSensor _dhtSensor(DHT_DATA_PIN, CHILD_ID_TEMP, CHILD_ID_HUM, _messageSender);
+DhtSensor _dhtSensor(DHT_DATA_PIN, CHILD_ID_TEMP, CHILD_ID_HUM, _messageSender, -3);
 
 const long UpdateInterval = 30000; // Wait time between reads (in milliseconds)
 void presentation()
