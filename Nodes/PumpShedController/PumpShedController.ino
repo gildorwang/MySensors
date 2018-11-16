@@ -15,6 +15,7 @@
 #define         DHT_PIN                      (4)  //define which digital input pin to use for dht pin
 
 const long UpdateInterval = 30000; // Wait time between reads (in milliseconds)
+const uint8_t MaxDimmerValue = 60;
 unsigned long _nextUpdateMillis = 0;
 
 MessageSender _messageSender;
@@ -57,7 +58,12 @@ void receive(const MyMessage &message) {
     if (message.type == V_PERCENTAGE && message.sensor == CHILD_ID_DIMMER) {
         uint8_t value = message.getByte();
         Serial.print("Incoming dimmer value: ");
-        Serial.print(value);
+        Serial.println(value);
+        if (value > MaxDimmerValue) {
+            value = MaxDimmerValue;
+            Serial.print("Coerced to ");
+            Serial.println(MaxDimmerValue);
+        }
         _dimmerSensor.set(value);
     }
 }
