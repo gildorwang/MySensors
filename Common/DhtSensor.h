@@ -28,7 +28,7 @@ public:
         ::delay(40);
         ::present(this->_humiditySensorId, S_HUM);
         ::delay(40);
-        this->_isMetric = getControllerConfig().isMetric;
+        this->_isMetric = false; //getControllerConfig().isMetric;
         Serial.print("Unit: ");
         Serial.println(this->_isMetric ? "metric" : "imperial");
     }
