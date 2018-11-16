@@ -19,7 +19,7 @@ const uint8_t MaxDimmerValue = 60;
 unsigned long _nextUpdateMillis = 0;
 
 MessageSender _messageSender;
-DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender);
+DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender, -3.5);
 DimmerSensor _dimmerSensor(DIMMER_PIN, CHILD_ID_DIMMER, _messageSender);
 ISensor* _sensors[2] = { &_dimmerSensor, &_dhtSensor };
 
