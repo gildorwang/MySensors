@@ -6,6 +6,10 @@
 class DhtSensor : public ISensor
 {
 private:
+    static constexpr float MinValidTemperature = -40;
+    static constexpr float MaxValidTemperature = 176;
+    static constexpr float MinValidHumidity = 10;
+    static constexpr float MaxValidHumidity = 90;
     uint8_t _pin;
     uint8_t _temperatureSensorId;
     uint8_t _humiditySensorId;
@@ -14,6 +18,19 @@ private:
     MessageSender _messageSender;
     // Set this offset if the sensor has a permanent small offset to the real temperatures
     float _temperatureOffset;
+
+    static bool _isValidTemperature(float temperature) {
+        return !isnan(temperature) &&
+            temperature >= MinValidTemperature &&
+            temperature <= MaxValidTemperature;
+    }
+
+    static bool _isValidHumidity(float humidity) {
+        return !isnan(humidity) &&
+            humidity >= MinValidHumidity &&
+            humidity <= MaxValidHumidity;
+    }
+
 public:
     DhtSensor(uint8_t pin, uint8_t temperatureSensorId, uint8_t humiditySensorId, MessageSender messageSender, float temperatureOffset = 0)
         : _pin(pin), _temperatureSensorId(temperatureSensorId), _humiditySensorId(humiditySensorId), _messageSender(messageSender), _temperatureOffset(temperatureOffset)
@@ -28,7 +45,7 @@ public:
         ::delay(40);
         ::present(this->_humiditySensorId, S_HUM);
         ::delay(40);
-        this->_isMetric = getControllerConfig().isMetric;
+        this->_isMetric = false; //getControllerConfig().isMetric;
         Serial.print("Unit: ");
         Serial.println(this->_isMetric ? "metric" : "imperial");
     }
@@ -48,7 +65,7 @@ public:
     bool reportTemperature() {
         float temperature = this->readTemperature();
         
-        if (isnan(temperature)) {
+        if (!DhtSensor::_isValidTemperature(temperature)) {
             Serial.println("Failed reading temperature from DHT!");
             return false;
         }
@@ -70,7 +87,7 @@ public:
     bool reportHumidity() {
         float humidity = this->readHumidity();
         
-        if (isnan(humidity)) {
+        if (!DhtSensor::_isValidHumidity(humidity)) {
             Serial.println("Failed reading humidity from DHT!");
             return false;
         }
