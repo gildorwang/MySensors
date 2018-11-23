@@ -19,7 +19,7 @@ const uint8_t MaxDimmerValue = 60;
 unsigned long _nextUpdateMillis = 0;
 
 MessageSender _messageSender;
-DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender, -3.5);
+DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender);
 DimmerSensor _dimmerSensor(DIMMER_PIN, CHILD_ID_DIMMER, _messageSender);
 ISensor* _sensors[2] = { &_dimmerSensor, &_dhtSensor };
 
@@ -34,7 +34,7 @@ void setup()
 void presentation()
 {
     // Send the sketch version information to the gateway and Controller
-    sendSketchInfo("Pump Shed Control", "3.1");
+    sendSketchInfo("Pump Shed Control", "3.2");
     
     for (ISensor* sensor : _sensors) {
         sensor->present();
