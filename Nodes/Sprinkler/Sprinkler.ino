@@ -130,7 +130,7 @@ void presentation()
 
 void loop()
 {
-    if (lcdOffMillis != 0 && millis() > lcdOffMillis) {
+    if (lcdOffMillis != 0 && millis() > lcdOffMillis && state != watering) {
         lcd.noBacklight();
         Serial.println("Turn off backlight");
         lcdOffMillis = 0;
@@ -179,7 +179,9 @@ void loop()
                 Serial.println("Manually stopped");
                 stopAllWatering();
                 setState(ready);
-                return;
+            }
+            else if (readGreenButton()) {
+                litLcd();
             }
             for (int index = 1; index <= NUMBER_OF_RELAYS; ++index) {
                 unsigned long offMillis = waterOffMillis[index - 1];
@@ -352,20 +354,23 @@ void msg(const char line1[], const char line2[]) {
     Serial.println(line1);
     Serial.println(line2);
     lcd.clear();
-    lcd.backlight();
     lcd.print(line1);
     lcd.setCursor(0,1); //newline
     lcd.print(line2);
-    lcdOffMillis = millis() + lcdOnDurationMillis;
+    litLcd();
 }
 
 void msg(const char line1[], int line2) {
     Serial.println(line1);
     Serial.println(line2);
     lcd.clear();
-    lcd.backlight();
     lcd.print(line1);
     lcd.setCursor(0,1); //newline
     lcd.print(line2);
+    litLcd();
+}
+
+void litLcd() {
+    lcd.backlight();
     lcdOffMillis = millis() + lcdOnDurationMillis;
 }
