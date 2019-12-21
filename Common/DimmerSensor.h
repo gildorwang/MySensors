@@ -32,6 +32,10 @@ class DimmerSensor : public ISensor
         bool report() {
         }
 
+        uint8_t read() {
+            return ::loadState(this->_sensorId);
+        }
+
         void set(uint8_t percentage) {
             uint8_t outputValue = ::map(percentage, 0, 100, 0, 255);
             ::saveState(this->_sensorId, outputValue);

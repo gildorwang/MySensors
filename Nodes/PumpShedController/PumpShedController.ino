@@ -1,4 +1,6 @@
 #define MY_NODE_ID 56
+//#define MY_DEBUG 
+//#define MY_DEBUG_VERBOSE_RFM69
 
 // Enable repeater functionality for this node
 #define MY_REPEATER_FEATURE
@@ -6,22 +8,26 @@
 #include <MySensorsCommon.h>
 #include <DhtSensor.h>
 #include <DimmerSensor.h>
+//#include <RadioMotionSensor.h>
 
 #define         CHILD_ID_DIMMER               0
 #define         CHILD_ID_TEMPERATURE          1
 #define         CHILD_ID_HUMIDITY             2
+#define         CHILD_ID_MOTION               3
 /************************Hardware Related Macros************************************/
-#define         DIMMER_PIN                   (3)  //define which digital input pin to use for motion sensor
-#define         DHT_PIN                      (4)  //define which digital input pin to use for dht pin
+#define         DIMMER_PIN                   (3)
+#define         DHT_PIN                      (4)
+#define         MOTION_PIN                   (5)
 
-const long UpdateInterval = 30000; // Wait time between reads (in milliseconds)
 const uint8_t MaxDimmerValue = 60;
-unsigned long _nextUpdateMillis = 0;
+// const uint8_t InvalidDimmerValue = 100;
+// uint8_t _dimmerValue = 0;
 
 MessageSender _messageSender;
 DhtSensor _dhtSensor(DHT_PIN, CHILD_ID_TEMPERATURE, CHILD_ID_HUMIDITY, _messageSender);
 DimmerSensor _dimmerSensor(DIMMER_PIN, CHILD_ID_DIMMER, _messageSender);
-ISensor* _sensors[2] = { &_dimmerSensor, &_dhtSensor };
+//RadioMotionSensor _radioMotionSensor(MOTION_PIN, CHILD_ID_MOTION, _messageSender);
+ISensor* _sensors[2] = { &_dimmerSensor, &_dhtSensor/* , &_radioMotionSensor */ };
 
 void setup()
 {
@@ -34,24 +40,27 @@ void setup()
 void presentation()
 {
     // Send the sketch version information to the gateway and Controller
-    sendSketchInfo("Pump Shed Control", "3.2");
+    sendSketchInfo("Pump Shed Control", "3.3");
     
     for (ISensor* sensor : _sensors) {
         sensor->present();
-        delay(40);
     }
 }
 
 void loop() {
-    unsigned long now = millis();
-    if (now > _nextUpdateMillis) {
-        _nextUpdateMillis = now + UpdateInterval;
-
-        for (ISensor* sensor : _sensors) {
-            sensor->report();
-            wait(40);
-        }
+    for (ISensor* sensor : _sensors) {
+        sensor->report();
     }
+    // if (_radioMotionSensor.read()) {
+    //     uint8_t currentDimmerValue = _dimmerSensor.read();
+    //     if (_dimmerValue == InvalidDimmerValue && currentDimmerValue > 0) {
+    //         _dimmerValue = currentDimmerValue;
+    //         _dimmerSensor.set(MaxDimmerValue);
+    //     }
+    // } else if (_dimmerValue != InvalidDimmerValue) {
+    //     _dimmerSensor.set(_dimmerValue);
+    //     _dimmerValue = InvalidDimmerValue;
+    // }
 }
 
 void receive(const MyMessage &message) {
@@ -65,5 +74,6 @@ void receive(const MyMessage &message) {
             Serial.println(MaxDimmerValue);
         }
         _dimmerSensor.set(value);
+        // _dimmerValue = InvalidDimmerValue;
     }
 }

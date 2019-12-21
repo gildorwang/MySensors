@@ -68,7 +68,7 @@ public:
         ::present(this->_sensorId, S_MOTION);
     }
 
-    bool readValue() {
+    bool read() {
         // Read digital motion value
         bool tripped = digitalRead(this->_pin) == HIGH;
         Serial.println(tripped ? "Tripped" : "Not tripped");
@@ -76,7 +76,7 @@ public:
     }
 
     void report() {
-        bool tripped = this->readValue();
+        bool tripped = this->read();
         if (millis() < this->_lastReportMillis + MinReportInterval) {
             return;
         }

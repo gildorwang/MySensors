@@ -184,7 +184,7 @@ public:
         ::present(this->_sensorId, S_AIR_QUALITY);
     }
 
-    uint16_t readValue() {
+    uint16_t read() {
         // uint16_t valMQ = this->MQGetGasPercentage(this->MQRead(this->_pin)/this->Ro, GAS_CO);
         // Serial.println(val);
         int valMQ;
@@ -204,7 +204,7 @@ public:
     }
 
     void report() {
-        uint16_t valMQ = this->readValue();
+        uint16_t valMQ = this->read();
         
         MyMessage msg(this->_sensorId, V_LEVEL);
         this->_messageSender.send(msg.set(valMQ));
