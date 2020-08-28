@@ -30,23 +30,7 @@
 #include <MySensorsCommon.h>
 #include <SPI.h>
 
-/************************Hardware Related Macros************************************/
-#define         RL_VALUE                     (5)     //define the load resistance on the board, in kilo ohms
-#define         RO_CLEAN_AIR_FACTOR          (9.83)  //RO_CLEAR_AIR_FACTOR=(Sensor resistance in clean air)/RO,
-//which is derived from the chart in datasheet
-/***********************Software Related Macros************************************/
-#define         CALIBRATION_SAMPLE_TIMES     (50)    //define how many samples you are going to take in the calibration phase
-#define         CALIBRATION_SAMPLE_INTERVAL  (500)   //define the time interal(in milisecond) between each samples in the
-//cablibration phase
-#define         READ_SAMPLE_INTERVAL         (50)    //define how many samples you are going to take in normal operation
-#define         READ_SAMPLE_TIMES            (5)     //define the time interal(in milisecond) between each samples in
-//normal operation
-/**********************Application Related Macros**********************************/
-#define         GAS_LPG                      (0)
-#define         GAS_CO                       (1)
-#define         GAS_SMOKE                    (2)
-/*****************************Globals***********************************************/
-
+#define pinToInterrupt(p) ((p) == 2 ? 0 : (p) == 3 ? 1 : NOT_AN_INTERRUPT)
 
 class MotionSensor : public ISensor
 {
@@ -54,6 +38,7 @@ private:
     uint8_t _pin;
     uint8_t _sensorId;
     MessageSender _messageSender;
+    bool _lastValue = false;
     unsigned long _lastReportMillis;
     const unsigned long MinReportInterval = 5000;
 public:
@@ -66,28 +51,36 @@ public:
 
     void present() {
         ::present(this->_sensorId, S_MOTION);
+        ::wait(40);
     }
 
     bool read() {
         // Read digital motion value
         bool tripped = digitalRead(this->_pin) == HIGH;
-        Serial.println(tripped ? "Tripped" : "Not tripped");
         return tripped;
     }
 
-    void report() {
+    bool report() {
         bool tripped = this->read();
-        if (millis() < this->_lastReportMillis + MinReportInterval) {
-            return;
+        if (tripped != this->_lastValue) {
+            Serial.println(tripped ? "Tripped" : "Not tripped");
         }
+        if (millis() < this->_lastReportMillis + MinReportInterval && tripped == this->_lastValue) {
+            return false;
+        }
+        this->_lastValue = tripped;
         this->_lastReportMillis = millis();
         MyMessage msg(this->_sensorId, V_TRIPPED);
         this->_messageSender.send(msg.set(tripped ? "1" : "0"));
+        ::wait(40);
+        return true;
     }
 
+    // Sleep until interrupt comes in on motion sensor or timeout
     void sleepForInterrupt(uint32_t sleepTime) {
-        // Sleep until interrupt comes in on motion sensor. Send update every two minute.
-        ::sleep(digitalPinToInterrupt(this->_pin), CHANGE, sleepTime);
+        auto result = ::smartSleep(pinToInterrupt(this->_pin), CHANGE, sleepTime);
+        Serial.print("Wake by ");
+        Serial.println(result);
     }
 
     ~MotionSensor() { }

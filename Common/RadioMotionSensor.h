@@ -21,6 +21,7 @@ public:
 
     void present() {
         ::present(this->_sensorId, S_MOTION);
+        ::wait(40);
     }
 
     bool read() {
