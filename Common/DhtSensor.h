@@ -41,10 +41,10 @@ class DhtSensor : public ISensor {
     }
 
     void present() {
-        ::present(this->_temperatureSensorId, S_TEMP);
-        ::delay(40);
-        ::present(this->_humiditySensorId, S_HUM);
-        ::delay(40);
+        ::present(this->_temperatureSensorId, S_TEMP, "Temperature");
+        ::wait(40);
+        ::present(this->_humiditySensorId, S_HUM, "Humidity");
+        ::wait(40);
         this->_isMetric = false; //getControllerConfig().isMetric;
         Serial.print("Unit: ");
         Serial.println(this->_isMetric ? "metric" : "imperial");

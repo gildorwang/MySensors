@@ -9,6 +9,7 @@ public:
     virtual void setup() { }
     virtual void present() = 0;
     virtual bool report() = 0;
+    static constexpr uint8_t InvalidSensorId = 255;
 };
 
 class MessageSender
